@@ -1,4 +1,4 @@
-import requests
+import requests, time
 
 class GandiClient:
     def __init__(self, uri, api_key="default") -> None:
@@ -68,6 +68,16 @@ class GandiClient:
             print("Get failed")
             
             
-client = GandiClient("localhost:19530")
+client = GandiClient("localhost:8080")
 
-client.get()
+
+collName = "test15"
+
+client.create_collection(collection_name=collName, dim=5)
+
+client.insert(collection_name=collName, data=[
+    {"id": i, "vector": [i/10]*5} for i in range(1, 6)
+])
+
+
+client.get(collection_name=collName, ids=[i for i in range(1, 6)])
