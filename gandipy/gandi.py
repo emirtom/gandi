@@ -71,7 +71,7 @@ class GandiClient:
 client = GandiClient("localhost:8080")
 
 
-collName = "test15"
+collName = "test18"
 
 client.create_collection(collection_name=collName, dim=5)
 
@@ -80,4 +80,4 @@ client.insert(collection_name=collName, data=[
 ])
 
 
-client.get(collection_name=collName, ids=[i for i in range(1, 6)])
+client.get(collection_name=collName, ids=[i for i in range(1, 3)])

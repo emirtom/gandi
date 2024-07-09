@@ -109,7 +109,7 @@ func getWithID(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"code": http.StatusOK,
-		"data": res.GetColumn("vector"),
+		"data": res.GetColumn("vector").FieldData(),
 	})
 }
 
@@ -152,11 +152,6 @@ func insertVector(c *gin.Context) {
 
 	if err != nil {
 		log.Fatal("Failed to insert vectors", err.Error())
-	}
-
-	err = cli.Flush(ctx, newData.CollectionName, false)
-	if err != nil {
-		log.Fatal("failed to flush collection:", err.Error())
 	}
 
 	fmt.Println("IDs of inserted vectors: ", ids)
