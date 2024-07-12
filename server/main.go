@@ -20,6 +20,8 @@ func main() {
 	router.POST("/gandi/collections/create", createCollection)
 	router.POST("/gandi/entities/get", getWithID)
 	router.POST("/gandi/entities/insert", insertVector)
+	router.POST("/gandi/entities/delete", deleteVectors)
+	router.POST("/gandi/entities/upsert", upsertVector)
 
 	ctx = context.Background()
 
@@ -148,6 +150,12 @@ func insertVector(c *gin.Context) {
 	fmt.Println(idColumn)
 	fmt.Println(vecColumn)
 
+	_, err := cli.DescribeCollection(ctx, newData.CollectionName)
+
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+
 	ids, err := cli.Insert(ctx, newData.CollectionName, "_default", idColumn, vecColumn)
 
 	if err != nil {
@@ -155,6 +163,98 @@ func insertVector(c *gin.Context) {
 	}
 
 	fmt.Println("IDs of inserted vectors: ", ids)
+
+	c.JSON(http.StatusOK, gin.H{
+		"code": http.StatusOK,
+		"data": newData,
+	})
+}
+
+type DeleteData struct {
+	DatabaseName   string
+	CollectionName string
+	Filter         string
+	PartitionName  string
+}
+
+func deleteVectors(c *gin.Context) {
+	var newData DeleteData
+
+	if err := c.BindJSON(&newData); err != nil {
+		fmt.Println("Could not bind data")
+		c.JSON(http.StatusNotAcceptable, gin.H{
+			"code":    http.StatusNotAcceptable,
+			"message": err.Error(),
+		})
+		return
+	}
+
+	if newData.DatabaseName == "" {
+		newData.DatabaseName = "default"
+	} else if err := cli.UsingDatabase(ctx, newData.DatabaseName); err != nil {
+		c.JSON(http.StatusNotAcceptable, gin.H{
+			"code":    http.StatusNotAcceptable,
+			"message": err.Error(),
+		})
+		fmt.Println("Database does not exist")
+	}
+
+	if newData.PartitionName == "" {
+		newData.PartitionName = "_default"
+	}
+
+	err := cli.Delete(ctx, newData.CollectionName, newData.PartitionName, newData.Filter)
+
+	if err != nil {
+		c.JSON(http.StatusNotAcceptable, gin.H{
+			"code":    http.StatusNotAcceptable,
+			"message": err.Error(),
+		})
+		fmt.Println("Could not delete specified vectors")
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"code": http.StatusOK,
+		"data": "",
+	})
+
+}
+
+type UpsertData struct {
+	Data           []element `json:"data"`
+	CollectionName string    `json:"collectionName"`
+}
+
+func upsertVector(c *gin.Context) {
+	var newData UpsertData
+
+	if err := c.BindJSON(&newData); err != nil {
+		fmt.Println("Could not bind data")
+		c.JSON(http.StatusNotAcceptable, gin.H{
+			"code": http.StatusNotAcceptable,
+		})
+		return
+	}
+
+	IDs := make([]int64, 0, len(newData.Data))
+	vecs := make([][]float32, 0, len(newData.Data))
+
+	for _, e := range newData.Data {
+		IDs = append(IDs, e.ID)
+		vecs = append(vecs, e.Vector)
+	}
+
+	idColumn := entity.NewColumnInt64("id", IDs)
+	vecColumn := entity.NewColumnFloatVector("vector", 5, vecs)
+
+	ids, err := cli.Upsert(ctx, newData.CollectionName, "_default", idColumn, vecColumn)
+
+	if err != nil {
+		log.Fatal("Failed to upsert vectors", err.Error())
+	}
+
+	fmt.Println("IDs of upserted vectors: ", ids)
 
 	c.JSON(http.StatusOK, gin.H{
 		"code": http.StatusOK,
